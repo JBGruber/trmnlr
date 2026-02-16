@@ -48,6 +48,7 @@ function(req, res) {
   return(response)
 }
 
+
 #* Returns the next image for the device to display, cycling through available images.
 #* @serializer unboxedJSON
 #* @get /api/display
@@ -100,6 +101,7 @@ function(req, res) {
   ))
 }
 
+
 #* Used by device firmware to log information about your device. Mostly used for debugging purposes.
 #* @serializer unboxedJSON
 #* @post /api/log
@@ -124,4 +126,28 @@ function(req, res) {
 
   res$status <- 204L
   return()
+}
+
+
+#* Serve an image file from the images directory.
+#* @param filename The image filename
+#* @serializer contentType list(type="application/octet-stream")
+#* @get /images/<filename>
+function(filename, res) {
+  path <- file.path("app/images", filename)
+  if (!file.exists(path)) {
+    res$status <- 404L
+    res$serializer <- plumber::serializer_unboxed_json()
+    return(list(error = "Image not found"))
+  }
+
+  ext <- tolower(tools::file_ext(filename))
+  mime <- switch(
+    ext,
+    png = "image/png",
+    bmp = "image/bmp",
+    "application/octet-stream"
+  )
+  res$setHeader("Content-Type", mime)
+  readBin(path, "raw", file.info(path)$size)
 }
