@@ -28,5 +28,33 @@ request("http://localhost:8000/api/setup") |>
   req_perform() |>
   resp_body_string()
 
+# test logging
+request("http://localhost:8000/api/log") |>
+  req_method("POST") |>
+  req_headers(ID = "1") |>
+  req_body_json(
+    data = list(
+      logs = list(
+        id = 667L,
+        message = "An API test.",
+        wifi_status = "connected",
+        created_at = 1742022124L,
+        sleep_duration = 31L,
+        refresh_rate = 30L,
+        free_heap_size = 160656L,
+        max_alloc_size = 180000L,
+        source_path = "src/bl.cpp",
+        wake_reason = "timer",
+        firmware_version = "1.5.2",
+        retry = 1L,
+        battery_voltage = 4.772,
+        source_line = 597L,
+        special_function = "none",
+        wifi_signal = -54L
+      )
+    )
+  ) |>
+  req_perform()
+readr::read_csv("app/data/device_log.csv")
 
 rx$kill()

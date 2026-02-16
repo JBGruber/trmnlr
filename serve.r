@@ -54,7 +54,27 @@ function(req, res) {
 function(ID) {}
 
 #* Used by device firmware to log information about your device. Mostly used for debugging purposes.
-#* @param ID Device ID
-#* @param logs
+#* @serializer unboxedJSON
 #* @post /api/log
-function(ID, logs) {}
+function(req, res) {
+  log_file <- "app/data/device_log.csv"
+  dir.create(dirname(log_file), recursive = TRUE, showWarnings = FALSE)
+  logs <- jsonlite::fromJSON(req$postBody)
+  write.table(
+    x = logs$logs,
+    file = log_file,
+    append = file.exists(log_file),
+    quote = TRUE,
+    sep = ",",
+    eol = "\n",
+    na = "NA",
+    dec = ".",
+    row.names = FALSE,
+    col.names = !file.exists(log_file),
+    qmethod = "escape",
+    fileEncoding = "UTF-8"
+  )
+
+  res$status <- 204L
+  return()
+}
