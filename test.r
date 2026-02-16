@@ -19,14 +19,15 @@ request("http://localhost:8000/api/setup") |>
 #>   "image_url": "https://localhost:2443/assets/setup.bmp",
 #>   "message": "Welcome to TRMNL BYOS"
 #> }
-request("http://localhost:8000/api/setup") |>
+reg <- request("http://localhost:8000/api/setup") |>
   req_error(body = \(resp) resp_body_string(resp)) |>
   req_headers(
     ID = "1",
     `Content-Type` = "application/json",
   ) |>
   req_perform() |>
-  resp_body_string()
+  resp_body_json()
+reg
 
 # test logging
 request("http://localhost:8000/api/log") |>
@@ -56,5 +57,11 @@ request("http://localhost:8000/api/log") |>
   ) |>
   req_perform()
 readr::read_csv("app/data/device_log.csv")
+
+# test display
+request("http://localhost:8000/api/display") |>
+  req_headers(ID = "1", ACCESS_TOKEN = reg$api_key) |>
+  req_perform() |>
+  resp_body_string()
 
 rx$kill()

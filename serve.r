@@ -48,10 +48,57 @@ function(req, res) {
   return(response)
 }
 
-#* Plot a histogram
-#* @param ID Device ID
+#* Returns the next image for the device to display, cycling through available images.
+#* @serializer unboxedJSON
 #* @get /api/display
-function(ID) {}
+function(req, res) {
+  # Verify device via Access-Token header
+  device_file <- "app/data/device.rds"
+  device <- try(readRDS(device_file))
+  if (methods::is(device, "try-error")) {
+    res$status <- 401L
+    return(list(error = "No device registered. Call /api/setup first."))
+  }
+  token <- req$HTTP_ACCESS_TOKEN
+  if (is.null(token) || token != device$api_key) {
+    res$status <- 401L
+    return(list(error = "Invalid Access-Token"))
+  }
+
+  # List available images
+  images_dir <- "app/images"
+  files <- list.files(images_dir, pattern = "\\.(png|bmp)$", ignore.case = TRUE)
+  if (length(files) == 0) {
+    return(list(
+      status = 0,
+      image_url = "",
+      filename = "",
+      refresh_rate = 900,
+      update_firmware = FALSE,
+      firmware_url = NULL,
+      reset_firmware = FALSE
+    ))
+  }
+
+  # Cycle through images using a persisted index
+  index_file <- "app/data/index.rds"
+  idx <- if (file.exists(index_file)) readRDS(index_file) else 0L
+  idx <- (idx %% length(files)) + 1L
+  saveRDS(idx, index_file)
+
+  filename <- files[idx]
+  image_url <- paste0("/images/", filename)
+
+  return(list(
+    status = 0,
+    image_url = image_url,
+    filename = filename,
+    refresh_rate = 900,
+    update_firmware = FALSE,
+    firmware_url = NULL,
+    reset_firmware = FALSE
+  ))
+}
 
 #* Used by device firmware to log information about your device. Mostly used for debugging purposes.
 #* @serializer unboxedJSON
