@@ -2,6 +2,7 @@
 #* @serializer unboxedJSON
 #* @get /api/setup
 function(req, res) {
+  cache_req(req, "setup")
   id <- req$HTTP_ID
   if (is.null(id) || id == "") {
     res$status <- 400L
@@ -18,14 +19,18 @@ function(req, res) {
     }
   }
 
-  api_key <- uuid::UUIDgenerate()
+  api_key <- paste0(
+    sample(c(LETTERS, letters, 0:9), size = 22, replace = TRUE),
+    collapse = ""
+  )
   friendly_id <- paste0("TRMNL_", gsub(":", "", id))
 
   # Pick the first available image as the initial image_url
   images_dir <- "app/images"
   imgs <- list.files(images_dir, pattern = "\\.(png|bmp)$", ignore.case = TRUE)
   filename <- head(c(imgs, ""), 1)
-  image_url <- paste0("/images/", filename)
+  base_url <- paste0("http://", req$HTTP_HOST)
+  image_url <- paste0(base_url, "/images/", filename)
 
   response <- list(
     api_key = api_key,
@@ -53,6 +58,7 @@ function(req, res) {
 #* @serializer unboxedJSON
 #* @get /api/display
 function(req, res) {
+  cache_req(req, "display")
   # Verify device via Access-Token header
   device_file <- "app/data/device.rds"
   device <- try(readRDS(device_file))
@@ -60,11 +66,12 @@ function(req, res) {
     res$status <- 401L
     return(list(error = "No device registered. Call /api/setup first."))
   }
-  token <- req$HTTP_ACCESS_TOKEN
-  if (is.null(token) || token != device$api_key) {
-    res$status <- 401L
-    return(list(error = "Invalid Access-Token"))
-  }
+  # turn off token validation
+  # token <- req$HTTP_ACCESS_TOKEN
+  # if (is.null(token) || token != device$api_key) {
+  #   res$status <- 401L
+  #   return(list(error = "Invalid Access-Token"))
+  # }
 
   # List available images
   images_dir <- "app/images"
@@ -88,7 +95,8 @@ function(req, res) {
   saveRDS(idx, index_file)
 
   filename <- files[idx]
-  image_url <- paste0("/images/", filename)
+  base_url <- paste0("http://", req$HTTP_HOST)
+  image_url <- paste0(base_url, "/images/", filename)
 
   return(list(
     status = 0,
@@ -106,6 +114,7 @@ function(req, res) {
 #* @serializer unboxedJSON
 #* @post /api/log
 function(req, res) {
+  cache_req(req, "log")
   log_file <- "app/data/device_log.csv"
   dir.create(dirname(log_file), recursive = TRUE, showWarnings = FALSE)
   logs <- jsonlite::fromJSON(req$postBody)
@@ -150,4 +159,11 @@ function(filename, res) {
   )
   res$setHeader("Content-Type", mime)
   readBin(path, "raw", file.info(path)$size)
+}
+
+
+cache_req <- function(req, method) {
+  req_path <- paste0("app/cache/", method, "_last_req.rds")
+  dir.create(dirname(req_path), recursive = TRUE, showWarnings = FALSE)
+  saveRDS(req, req_path)
 }
