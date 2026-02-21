@@ -162,6 +162,7 @@ function(filename, res) {
 }
 
 
+# save incoming requests to disk for debugging
 cache_req <- function(req, method) {
   req_path <- paste0("app/cache/", method, "_last_req.rds")
   dir.create(dirname(req_path), recursive = TRUE, showWarnings = FALSE)
