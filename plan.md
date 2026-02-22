@@ -25,9 +25,11 @@ Implement these endpoints:
 
 #### Custom Management Endpoints
 
-- **`POST /upload`** — Accept a PNG file via multipart form upload. Save it to the `/images` directory, overwriting if a file with the same name exists. Consider converting to device-compatible format (800x480, 1-bit) using the `magick` R package (ImageMagick bindings). Return the filename and success status.
+- **`POST /upload`** — Accept any image file, then convert it with `convert_for_trmnl`. Save it to the `/images` directory, overwriting if a file with the same name exists. Alternativly accepts markdown strings, which are rendered with `render_md_bmp`
 
 - **`GET /list`** — List all PNG/BMP files in the `/images` directory. Return as a JSON array with filenames and sizes.
+
+- **`DELETE /delete`** — delete and image from `/images`.
 
 #### Static File Serving
 

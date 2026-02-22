@@ -4,6 +4,7 @@ rx <- callr::r_bg(function() {
     plumber::pr_run(port = 8000)
 })
 rx$is_alive()
+on.exit(rx$kill())
 
 ### test
 library(httr2)
@@ -64,4 +65,30 @@ request("http://localhost:8000/api/display") |>
   req_perform() |>
   resp_body_string()
 
-rx$kill()
+# test uplaod
+
+# test upload (image file)
+request("http://localhost:8000/upload") |>
+  req_url_query(filename = "JBGruber2") |>
+  req_body_file("/home/johannes/Pictures/JBGruber2.jpg") |>
+  req_perform() |>
+  resp_body_json()
+
+
+# test upload (markdown)
+request("http://localhost:8000/upload") |>
+  req_body_json(list(markdown = "# Hello\n- item 1", filename = "note.bmp")) |>
+  req_perform() |>
+  resp_body_json()
+
+
+# test list
+request("http://localhost:8000/list") |>
+  req_perform() |>
+  resp_body_json()
+
+# test delete
+request("http://localhost:8000/delete") |>
+  req_method("DELETE") |>
+  req_url_query(filename = "note.bmp") |>
+  req_perform()

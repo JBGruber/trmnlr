@@ -1,3 +1,6 @@
+source("utils.R")
+
+
 #* Used for new device setup and then never used after.
 #* @serializer unboxedJSON
 #* @get /api/setup
@@ -159,6 +162,80 @@ function(filename, res) {
   )
   res$setHeader("Content-Type", mime)
   readBin(path, "raw", file.info(path)$size)
+}
+
+
+#* Upload an image file or render a markdown string to the images directory.
+#* For file uploads, send a multipart form with a 'file' field.
+#* For markdown, send JSON with a 'markdown' field and optional 'filename' field.
+#* @serializer unboxedJSON
+#* @parser multi
+#* @parser json
+#* @post /upload
+function(req, res, file = NULL, markdown = NULL, filename = NULL) {
+  cache_req(req, "upload")
+  images_dir <- "app/images"
+  dir.create(images_dir, recursive = TRUE, showWarnings = FALSE)
+
+  if (!is.null(markdown)) {
+    out_name <- if (!is.null(filename) && nzchar(filename)) {
+      filename
+    } else {
+      "text.bmp"
+    }
+    out_name <- sub("\\.[^.]+$", ".bmp", basename(out_name))
+    render_md_bmp(markdown, output = file.path(images_dir, out_name))
+    return(list(filename = out_name, status = "ok"))
+  }
+
+  # Raw binary body (e.g., from req_body_file())
+  raw_body <- req$bodyRaw
+  if (!is.null(raw_body) && length(raw_body) > 0) {
+    convert_for_trmnl(raw_body, output = file.path(images_dir, out_name))
+    return(list(filename = out_name, status = "ok"))
+  }
+
+  res$status <- 400L
+  list(
+    error = "Provide a 'markdown' field (JSON), or a raw binary body"
+  )
+}
+
+
+#* List all PNG/BMP files in the images directory with their sizes.
+#* @serializer unboxedJSON
+#* @get /list
+function() {
+  images_dir <- "app/images"
+  files <- list.files(images_dir, pattern = "\\.(png|bmp)$", ignore.case = TRUE)
+  info <- file.info(file.path(images_dir, files))
+  lapply(seq_along(files), function(i) {
+    list(
+      filename = files[i],
+      size = unname(info$size[i]),
+      timestamp = unname(info$ctime[i])
+    )
+  })
+}
+
+
+#* Delete an image from the images directory.
+#* @param filename The image filename to delete.
+#* @serializer unboxedJSON
+#* @delete /delete
+function(filename, res) {
+  if (grepl("[/\\\\]", filename)) {
+    res$status <- 400L
+    return(list(error = "Invalid filename"))
+  }
+  path <- file.path("app/images", filename)
+  if (!file.exists(path)) {
+    res$status <- 404L
+    return(list(error = "File not found"))
+  }
+  file.remove(path)
+  res$status <- 204L
+  return()
 }
 
 
