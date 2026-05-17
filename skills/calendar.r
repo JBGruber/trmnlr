@@ -446,55 +446,58 @@ fetch_tasks <- function(token, tasklist = "@default", max_results = 20L) {
 
 # ── Calendar grid (ggplot2) ───────────────────────────────────────────────────
 
-#' Build a 42-cell data frame representing a month calendar grid.
+#' Build a 14-cell data frame for the current + next week.
 #'
-#' @param year,month Integer year and month.
-#' @param events Data frame from fetch_ics_events(), pre-filtered to this month.
+#' @param events Data frame from fetch_ics_events(), pre-filtered to the 2-week window.
 #' @param week_start 1 = Monday (ISO/European), 7 = Sunday (US).
 #' @param today Date used to highlight the current day.
 build_calendar_df <- function(
-  year = as.integer(format(Sys.Date(), "%Y")),
-  month = as.integer(format(Sys.Date(), "%m")),
   events = .empty_events(),
   week_start = 1L,
   today = Sys.Date()
 ) {
-  first_day <- as.Date(paste(year, sprintf("%02d", month), "01", sep = "-"))
-  last_day <- seq(first_day, by = "month", length.out = 2L)[2L] - 1L
-  first_wday <- lubridate::wday(first_day, week_start = week_start)
-  start_date <- first_day - (first_wday - 1L)
-  all_dates <- seq(start_date, by = "day", length.out = 42L)
+  wday_today <- lubridate::wday(today, week_start = week_start)
+  start_date <- today - (wday_today - 1L)
+  all_dates <- seq(start_date, by = "day", length.out = 14L)
 
   df <- data.frame(
     date = all_dates,
     col = ((seq_along(all_dates) - 1L) %% 7L) + 1L,
     row = ((seq_along(all_dates) - 1L) %/% 7L) + 1L,
+    in_month = TRUE,
     stringsAsFactors = FALSE
   )
-  df$in_month <- df$date >= first_day & df$date <= last_day
-  df$day_num <- ifelse(
-    df$in_month,
-    as.integer(format(df$date, "%d")),
-    NA_integer_
-  )
-  df$is_today <- df$in_month & df$date == today
+  df$day_num <- as.integer(format(df$date, "%d"))
+  df$is_today <- df$date == today
 
   if (nrow(events) > 0L && "dtstart" %in% names(events)) {
     event_dates <- as.Date(events$dtstart)
-    df$has_event <- df$in_month & (df$date %in% event_dates)
+    df$has_event <- df$date %in% event_dates
+    df$event_label <- sapply(df$date, function(d) {
+      evs <- events[as.Date(events$dtstart) == d, , drop = FALSE]
+      if (nrow(evs) == 0L) {
+        return(NA_character_)
+      }
+      lbl <- evs$summary[1L]
+      if (nchar(lbl) > 9L) paste0(substr(lbl, 1L, 8L), "…") else lbl
+    })
   } else {
     df$has_event <- FALSE
+    df$event_label <- NA_character_
   }
 
   df
 }
 
-#' Build ggplot2 calendar for one month.
-make_calendar_plot <- function(cal_df, year, month) {
-  month_label <- format(
-    as.Date(paste(year, sprintf("%02d", month), "01", sep = "-")),
-    "%B %Y"
-  )
+#' Build ggplot2 calendar for the 2-week view.
+make_calendar_plot <- function(cal_df) {
+  start_date <- min(cal_df$date)
+  end_date <- max(cal_df$date)
+  title_label <- if (format(start_date, "%Y-%m") == format(end_date, "%Y-%m")) {
+    paste0(format(start_date, "%B %d"), " – ", format(end_date, "%d, %Y"))
+  } else {
+    paste0(format(start_date, "%b %d"), " – ", format(end_date, "%b %d, %Y"))
+  }
 
   wday_labels <- c("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
   header_df <- data.frame(
@@ -503,62 +506,54 @@ make_calendar_plot <- function(cal_df, year, month) {
     stringsAsFactors = FALSE
   )
 
-  used_rows <- if (any(cal_df$in_month)) {
-    max(cal_df$row[cal_df$in_month])
-  } else {
-    5L
-  }
-  plot_df <- cal_df[cal_df$row <= used_rows, ]
-
-  ggplot(plot_df, aes(x = col, y = -row)) +
+  ggplot(cal_df, aes(x = col, y = -row)) +
     # Day tiles: black fill for today, white for others
     geom_tile(
       aes(fill = is_today),
       colour = "grey55",
-      linewidth = 0.4,
+      linewidth = 0.6,
       width = 0.95,
       height = 0.90,
       show.legend = FALSE
     ) +
     scale_fill_manual(values = c("FALSE" = "white", "TRUE" = "black")) +
-    # Day numbers: white text on today, black otherwise
+    # Day numbers: larger, positioned toward top of cell
     geom_text(
-      aes(label = day_num, colour = is_today, y = -row + 0.20),
-      size = 3.0,
+      aes(label = day_num, colour = is_today, y = -row + 0.28),
+      size = 5.5,
       fontface = "bold",
       na.rm = TRUE,
       show.legend = FALSE
     ) +
     scale_colour_manual(values = c("FALSE" = "black", "TRUE" = "white")) +
-    # Dot indicator for days with events
-    geom_point(
-      data = \(d) subset(d, has_event & in_month),
-      aes(y = -row - 0.28),
-      size = 1.0,
-      colour = "black",
-      shape = 16,
+    # Event label: first event summary, truncated, below day number
+    geom_text(
+      data = \(d) d[!is.na(d$event_label), ],
+      aes(label = event_label, y = -row - 0.12, colour = is_today),
+      size = 2.4,
       na.rm = TRUE,
-      inherit.aes = TRUE
+      inherit.aes = TRUE,
+      show.legend = FALSE
     ) +
     # Weekday column headers (separate data layer)
     geom_text(
       data = header_df,
       aes(x = col, y = 0.62, label = label),
-      size = 2.7,
+      size = 4.0,
       fontface = "bold",
       colour = "black",
       inherit.aes = FALSE
     ) +
-    labs(title = month_label) +
+    labs(title = title_label) +
     scale_x_continuous(expand = expansion(add = 0.55)) +
     scale_y_continuous(expand = expansion(add = 0.45)) +
-    theme_void(base_size = 9L) +
+    theme_void(base_size = 11L) +
     theme(
       plot.title = element_text(
         hjust = 0.5,
         face = "bold",
-        size = 10L,
-        margin = margin(t = 3L, b = 3L)
+        size = 12L,
+        margin = margin(t = 4L, b = 4L)
       ),
       plot.background = element_rect(fill = "white", colour = NA),
       plot.margin = margin(2L, 2L, 2L, 2L)
@@ -578,8 +573,8 @@ make_calendar_plot <- function(cal_df, year, month) {
 make_right_panel_grob <- function(
   tasks,
   upcoming,
-  max_tasks = 10L,
-  max_upcoming = 7L
+  max_tasks = 4L,
+  max_upcoming = 4L
 ) {
   children <- list()
 
@@ -707,11 +702,10 @@ render_calendar_bmp <- function(
   tz = Sys.timezone(),
   today = Sys.Date()
 ) {
-  year <- as.integer(format(today, "%Y"))
-  month <- as.integer(format(today, "%m"))
-  from <- lubridate::floor_date(today, "month")
-  # Fetch a bit beyond month end so upcoming panel sees near-future events
-  to <- lubridate::ceiling_date(today, "month") - 1L + 21L
+  # 2-week window: Monday of current week through Sunday of next week
+  wday_today <- lubridate::wday(today, week_start = week_start)
+  from <- today - (wday_today - 1L)
+  to <- from + 13L
 
   # ── Fetch data ────────────────────────────────────────────────────────────
   events <- if (length(ics_urls) > 0L) {
@@ -734,25 +728,18 @@ render_calendar_bmp <- function(
 
   tasks <- fetch_tasks(tasks_token)
 
-  # Events for this month's calendar grid
-  month_events <- if (nrow(events) > 0L) {
-    events[format(as.Date(events$dtstart), "%Y-%m") == format(today, "%Y-%m"), ]
-  } else {
-    .empty_events()
-  }
-
   # Next N future events for the side panel
   upcoming <- if (nrow(events) > 0L) {
     future <- events[as.Date(events$dtstart) >= today, ]
     future <- future[order(future$dtstart), ]
-    head(future, 7L)
+    head(future, 4L)
   } else {
     .empty_events()
   }
 
   # ── Build visuals ─────────────────────────────────────────────────────────
-  cal_df <- build_calendar_df(year, month, month_events, week_start, today)
-  cal_plot <- make_calendar_plot(cal_df, year, month)
+  cal_df <- build_calendar_df(events, week_start, today)
+  cal_plot <- make_calendar_plot(cal_df)
   right_grob <- make_right_panel_grob(tasks, upcoming)
 
   # ── Render ────────────────────────────────────────────────────────────────
