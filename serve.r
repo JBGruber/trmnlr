@@ -1,5 +1,26 @@
 source("utils.R")
 
+.run_skills <- function() {
+  skill_files <- list.files(
+    "skills",
+    pattern = "\\.r$",
+    full.names = TRUE,
+    ignore.case = TRUE
+  )
+  # deactivate skills with leading _
+  skill_files <- grep("skills/[^_]", skill_files, value = TRUE)
+  for (f in skill_files) {
+    tryCatch(
+      source(f),
+      error = function(e) {
+        warning("Skill '", basename(f), "' failed: ", conditionMessage(e))
+      }
+    )
+  }
+  later::later(.run_skills, delay = 60)
+}
+.run_skills()
+
 
 #* Used for new device setup and then never used after.
 #* @serializer unboxedJSON
@@ -79,6 +100,7 @@ function(req, res) {
   # List available images
   images_dir <- "app/images"
   files <- list.files(images_dir, pattern = "\\.(png|bmp)$", ignore.case = TRUE)
+  files <- grep("^[^_]", files, value = TRUE, perl = TRUE)
   if (length(files) == 0) {
     return(list(
       status = 0,

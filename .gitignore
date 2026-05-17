@@ -1,4 +1,5 @@
 app/data/
 app/cache/
 test.png
-app/images/monday.bmp
+.Renviron
+app/images/calendar.bmp
