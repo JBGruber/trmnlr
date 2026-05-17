@@ -520,7 +520,7 @@ make_calendar_plot <- function(cal_df) {
     # Day numbers: larger, positioned toward top of cell
     geom_text(
       aes(label = day_num, colour = is_today, y = -row + 0.28),
-      size = 5.5,
+      size = 6,
       fontface = "bold",
       na.rm = TRUE,
       show.legend = FALSE
@@ -530,7 +530,7 @@ make_calendar_plot <- function(cal_df) {
     geom_text(
       data = \(d) d[!is.na(d$event_label), ],
       aes(label = event_label, y = -row - 0.12, colour = is_today),
-      size = 2.4,
+      size = 3.8,
       na.rm = TRUE,
       inherit.aes = TRUE,
       show.legend = FALSE
@@ -539,7 +539,7 @@ make_calendar_plot <- function(cal_df) {
     geom_text(
       data = header_df,
       aes(x = col, y = 0.62, label = label),
-      size = 4.0,
+      size = 6.0,
       fontface = "bold",
       colour = "black",
       inherit.aes = FALSE
@@ -547,12 +547,12 @@ make_calendar_plot <- function(cal_df) {
     labs(title = title_label) +
     scale_x_continuous(expand = expansion(add = 0.55)) +
     scale_y_continuous(expand = expansion(add = 0.45)) +
-    theme_void(base_size = 11L) +
+    theme_void(base_size = 22L) +
     theme(
       plot.title = element_text(
         hjust = 0.5,
         face = "bold",
-        size = 12L,
+        size = 24L,
         margin = margin(t = 4L, b = 4L)
       ),
       plot.background = element_rect(fill = "white", colour = NA),
@@ -580,9 +580,9 @@ make_right_panel_grob <- function(
 
   x_left <- 0.07 # left margin (npc)
   y <- 0.96 # current y, top-down
-  dy_head <- 0.058 # heading height (≈ 28px at 480px)
-  dy_item <- 0.068 # item row height (≈ 33px)
-  dy_evt <- 0.072 # upcoming event height
+  dy_head <- 0.116 # heading height
+  dy_item <- 0.136 # item row height
+  dy_evt <- 0.06 # upcoming event height
 
   .add <- function(grob) {
     children[[length(children) + 1L]] <<- grob
@@ -595,7 +595,7 @@ make_right_panel_grob <- function(
     y = grid::unit(y, "npc"),
     hjust = 0L,
     vjust = 1L,
-    gp = grid::gpar(fontsize = 9L, fontface = "bold")
+    gp = grid::gpar(fontsize = 15L, fontface = "bold")
   ))
   y <- y - dy_head
 
@@ -611,7 +611,7 @@ make_right_panel_grob <- function(
         y = grid::unit(y, "npc"),
         hjust = 0L,
         vjust = 1L,
-        gp = grid::gpar(fontsize = 7.5)
+        gp = grid::gpar(fontsize = 12)
       ))
       y <- y - dy_item
     }
@@ -622,7 +622,7 @@ make_right_panel_grob <- function(
       y = grid::unit(y, "npc"),
       hjust = 0L,
       vjust = 1L,
-      gp = grid::gpar(fontsize = 7.5, col = "grey60")
+      gp = grid::gpar(fontsize = 15, col = "grey60")
     ))
   }
 
@@ -642,7 +642,7 @@ make_right_panel_grob <- function(
     y = grid::unit(y, "npc"),
     hjust = 0L,
     vjust = 1L,
-    gp = grid::gpar(fontsize = 9L, fontface = "bold")
+    gp = grid::gpar(fontsize = 15L, fontface = "bold")
   ))
   y <- y - dy_head
 
@@ -666,7 +666,7 @@ make_right_panel_grob <- function(
         y = grid::unit(y, "npc"),
         hjust = 0L,
         vjust = 1L,
-        gp = grid::gpar(fontsize = 7.5)
+        gp = grid::gpar(fontsize = 13)
       ))
       y <- y - dy_evt
     }
@@ -677,7 +677,7 @@ make_right_panel_grob <- function(
       y = grid::unit(y, "npc"),
       hjust = 0L,
       vjust = 1L,
-      gp = grid::gpar(fontsize = 7.5, col = "grey60")
+      gp = grid::gpar(fontsize = 9, col = "grey60")
     ))
   }
 
